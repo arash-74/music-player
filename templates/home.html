@@ -1,0 +1,82 @@
+{% load static %}
+{% load custom %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Music Player</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+<div class="container">
+    <div class="background-image">
+        <img>
+    </div>
+    <div class="error-container">
+        <p class="error"></p>
+    </div>
+    <div class="player-container">
+        <div class="top-section">
+            <div class="track-image-container">
+                <img src="/media/default.png">
+            </div>
+            <div class="right-section">
+                <audio class="audio-player" src=""></audio>
+                <div class="control-btns">
+                    <div class="back-track-btn" onclick="back_track()">
+                        <img src="{% static 'svgs/back-svgrepo-com.svg' %}">
+                    </div>
+                    <div class="play-track-btn" onclick="pause_music()">
+                        <img src="{% static 'svgs/play-button-svgrepo-com.svg' %}">
+                    </div>
+                    <div class="pause-track-btn hide" onclick="pause_music()">
+                        <img src="{% static 'svgs/pause-svgrepo-com.svg' %}">
+                    </div>
+
+                    <div class="next-track-btn" onclick="next_track()">
+                        <img src="{% static 'svgs/next-svgrepo-com.svg' %}">
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <span class="current-time">00:00</span>
+                    <input type="range" value="0" min="0">
+                    <span class="track-duration"></span>
+                </div>
+            </div>
+        </div>
+        <div class="down-section">
+            <div class="track-info"><p class="track-name"></p>
+                <p class="track-artist"></p></div>
+            <span class="show-uploader-btn"><img src="{% static 'svgs/music-list-svgrepo-com.svg' %}"></span>
+        </div>
+    </div>
+    <div class="uploader-container">
+        <div class="upper">
+            <div class="add-track-container">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input id="uploader" type="file" name="uploader" style="display: none">
+                    <label for="uploader"><img src="{% static 'svgs/add-square-svgrepo-com.svg' %}"></label>
+                </form>
+            </div>
+            <span class="close-btn"><img src="{% static 'svgs/close-circle-svgrepo-com.svg' %}"></span>
+        </div>
+
+        <div class="tracks-list">
+
+            {% for track in tracks %}
+                <div class="track-container" data-number="{{ forloop.counter }}" data-id="{{ track.id }}"
+                     ondblclick="play_music(this)">
+                    <div class="track-info">
+                        <span class="track-name">{{ track.name }}</span>
+                        <span class="track-artist">{{ track.artist }}</span>
+                    </div>
+                    <span class="duration">{{ track.duration|convert_time }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% include 'script.js.html' %}
+</body>
+</html>

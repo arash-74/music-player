@@ -1,0 +1,185 @@
+<script type="text/javascript">
+    let close_btn = document.querySelector('.uploader-container .close-btn')
+    let show_btn = document.querySelector('.player-container .show-uploader-btn')
+    let add_track_btn = document.querySelector('.uploader-container .add-track-container input[type=file]')
+    let tracks_list = document.querySelector('.tracks-list')
+    let audio_player = document.querySelector('.audio-player')
+    let play_btn = document.querySelector('.control-btns .play-track-btn')
+    let pause_btn = document.querySelector('.control-btns .pause-track-btn')
+    let background_image = document.querySelector('.container .background-image img')
+    let track_info = document.querySelector('.down-section .track-info')
+    let slider = document.querySelector('.progress-container input')
+    let current_time = document.querySelector('.progress-container .current-time')
+    let error = document.querySelector('.error-container .error')
+
+
+    let cookie = document.cookie.split('=')[1]
+    let current_music = 0
+    let duration = 0
+    let music_number = document.querySelectorAll('.track-container').length
+    let player_state = 'stop'
+
+    close_btn.addEventListener('click', () => {
+        document.querySelector('.uploader-container').classList.remove('show')
+        show_btn.classList.remove('show')
+    })
+    show_btn.addEventListener('click', () => {
+        document.querySelector('.uploader-container').classList.add('show')
+        show_btn.classList.add('show')
+    })
+    add_track_btn.addEventListener('input', e => {
+        let file = new FormData()
+        file.append('audio', e.target.files[0])
+        console.log(file.get('audio'))
+        fetch('{% url 'music player:upload' %}', {
+            method: 'POST',
+            headers: {'X-CSRFToken': cookie},
+            body: file
+        }).then(res => res.json()).then(res => {
+            console.log(res['status'])
+            if (res['status'] === 'ok') {
+                music_number += 1
+                let el = `<div class="track-container" data-id=${res['number']} data-number=${music_number} ondblclick="play_music(this)">
+                    <div class="track-info">
+                        <span class="track-name">${res['name']}</span>
+                        <span class="track-artist">${res['artist']}</span>
+                    </div>
+                    <span class="duration">${res['duration']}</span>
+                </div>`
+                tracks_list.insertAdjacentHTML('afterbegin', el)
+            }
+            if (res['status'] === 'error') {
+                console.log('fdskfhdjshfsdkj')
+                error.innerText = res['msg']
+                setTimeout(() => {
+                    error.innerText = ''
+                }, 1500)
+            }
+
+        })
+    })
+
+    async function play_music(el) {
+        await fetch('{% url 'music player:play'  %}', {
+            method: 'POST',
+            headers: {'X-CSRFToken': cookie},
+            body: JSON.stringify({
+                'number': el.dataset['id']
+            })
+        }).then(res => res.json()).then(res => {
+            if (res['status'] === 'ok') {
+                audio_player.src = '/media/' + res['filename']
+                audio_player.play()
+                current_music = Number(el.dataset['number'])
+                player_state = 'play'
+                play_btn.classList.add('hide')
+                pause_btn.classList.remove('hide')
+                document.querySelector('.track-image-container img').src = res['image']
+                document.querySelector('.container .background-image img').src = res['image']
+                track_info.children[0].innerText = res['name']
+                track_info.children[1].innerText = res['artist']
+                duration = res['duration']
+                document.querySelector('.progress-container .track-duration').innerText = formattime(duration)
+                slider.value = 0
+                slider.max = duration
+                background_image.classList.add('playing')
+            }
+            if (res['status'] === 'error') {
+                console.log('fdskfhdjshfsdkj')
+                error.innerText = res['msg']
+                setTimeout(() => {
+                    error.innerText = ''
+                }, 1500)
+            }
+        })
+    }
+
+    function pause_music() {
+        if (player_state === 'pause') {
+            audio_player.play()
+            play_btn.classList.add('hide')
+            pause_btn.classList.remove('hide')
+            player_state = 'play'
+            background_image.classList.add('playing')
+        } else if (player_state === 'play') {
+            audio_player.pause()
+            player_state = 'pause'
+            pause_btn.classList.add('hide')
+            play_btn.classList.remove('hide')
+            background_image.classList.remove('playing')
+        }
+    }
+
+    function next_track() {
+        console.log(current_music, music_number)
+        if (player_state !== 'stop' && current_music === music_number) {
+            current_music = 1
+            play_music(document.querySelectorAll('.track-container')[current_music - 1])
+        } else if (player_state !== 'stop' && current_music !== music_number) {
+            current_music += 1
+            play_music(document.querySelectorAll('.track-container')[current_music - 1])
+        }
+
+    }
+
+    function back_track() {
+        console.log(current_music, music_number)
+        if (player_state !== 'stop' && current_music === 1) {
+            current_music = music_number
+            play_music(document.querySelectorAll('.track-container')[current_music - 1])
+        } else if (player_state !== 'stop' && current_music !== 1) {
+            current_music -= 1
+            play_music(document.querySelectorAll('.track-container')[current_music - 1])
+        }
+
+    }
+
+    slider.addEventListener('mousedown', () => {
+        player_state = 'changing'
+    })
+    slider.addEventListener('touchstart', () => {
+        player_state = 'changing'
+
+    })
+    slider.addEventListener('change', () => {
+        audio_player.currentTime = slider.value
+        player_state = 'play'
+    })
+
+    setInterval(() => {
+        if (player_state === 'play') {
+            slider.value = audio_player.currentTime
+            current_time.innerText = formattime(audio_player.currentTime)
+        }
+    }, 1000)
+
+    audio_player.addEventListener('ended', () => {
+        console.log('end')
+        next_track()
+    })
+
+    function formattime(time) {
+        let min = Math.floor(time / 60)
+        let sec = Math.floor(time % 60)
+        if (min < 10) {
+            min = `0${min}`
+        }
+        if (sec < 10) {
+            sec = `0${sec}`
+        }
+        return `${min}:${sec}`
+    }
+
+    window.addEventListener('beforeunload', () => {
+        sessionStorage.setItem('refreshing', 'true');
+    })
+    window.addEventListener('load', () => {
+        if (sessionStorage.getItem('refreshing')) {
+            sessionStorage.removeItem('refreshing')
+        } else {
+            fetch('{% url 'music player:clear' %}', {})
+
+        }
+    })
+
+</script>
